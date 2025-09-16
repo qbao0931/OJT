@@ -5,6 +5,8 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 const app = express();
+// Swagger
+require('./swagger')(app);
 
 app.use(cors());
 app.use(express.json());

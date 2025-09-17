@@ -1,90 +1,127 @@
-// routes/authRoutes.js
-// Lưu ý: Tất cả các endpoint đều bắt đầu bằng /api/auth (ví dụ: /api/auth/login, /api/auth/forgot-password)
-
-// routes/authRoutes.js
-// Lưu ý: Tất cả các endpoint đều bắt đầu bằng /api/auth (ví dụ: /api/auth/login, /api/auth/forgot-password)
 const express = require("express");
 const router = express.Router();
-const {
-  register,
-  login,
-  forgotPassword,
-  resetPassword,
-  profile,
-  verifyOtp,
-  refreshToken
-} = require("../controllers/authController");
-const { protect } = require("../middleware/authMiddleware"); // giả sử bạn có middleware
+const User = require("../models/User");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 
 /**
  * @swagger
- * /api/auth/refresh-token:
- *   post:
- *     summary: Lấy access token mới từ refresh token
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               refreshToken:
- *                 type: string
- *     responses:
- *       200:
- *         description: Trả về access token mới
+ * tags:
+ *   name: Auth
+ *   description: Authentication APIs
  */
-router.post("/refresh-token", refreshToken);
 
 /**
  * @swagger
  * /api/auth/register:
  *   post:
- *     summary: Đăng ký tài khoản mới
+ *     summary: Register a new user
+ *     tags: [Auth]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - name
+ *               - email
+ *               - password
  *             properties:
  *               name:
  *                 type: string
+ *                 example: "Nguyen Van B"
  *               email:
  *                 type: string
+ *                 example: "b@example.com"
  *               password:
  *                 type: string
+ *                 example: "123456"
  *     responses:
  *       201:
- *         description: Đăng ký thành công
+ *         description: User registered successfully
+ *       400:
+ *         description: Email already exists
  */
-router.post("/register", register);
+router.post("/register", async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    const exists = await User.findOne({ email });
+    if (exists) return res.status(400).json({ message: "Email already exists" });
+
+    const user = await User.create({ name, email, password });
+
+    res.status(201).json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 /**
  * @swagger
  * /api/auth/login:
  *   post:
- *     summary: Đăng nhập
+ *     summary: Login user
+ *     tags: [Auth]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - email
+ *               - password
  *             properties:
  *               email:
  *                 type: string
+ *                 example: "b@example.com"
  *               password:
  *                 type: string
+ *                 example: "123456"
  *     responses:
  *       200:
- *         description: Đăng nhập thành công
+ *         description: Login success
+ *       401:
+ *         description: Invalid email or password
  */
-router.post("/login", login);
+router.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) return res.status(401).json({ message: "Invalid email or password" });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(401).json({ message: "Invalid email or password" });
+
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
+      expiresIn: "1d",
+    });
+
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      token,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 /**
  * @swagger
- * /api/auth/forgot-password:
+ * /api/auth/send-otp:
  *   post:
- *     summary: Gửi OTP về email
+ *     summary: Send OTP to user (simulate email)
+ *     tags: [Auth]
  *     requestBody:
  *       required: true
  *       content:
@@ -94,39 +131,35 @@ router.post("/login", login);
  *             properties:
  *               email:
  *                 type: string
+ *                 example: "b@example.com"
  *     responses:
  *       200:
- *         description: OTP đã gửi về email
+ *         description: OTP sent successfully
  */
-router.post("/forgot-password", forgotPassword);
-/**
- * @swagger
- * /api/auth/reset-password:
- *   post:
- *     summary: Đổi mật khẩu bằng OTP
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               email:
- *                 type: string
- *               otp:
- *                 type: string
- *               newPassword:
- *                 type: string
- *     responses:
- *       200:
- *         description: Đổi mật khẩu thành công
- */
-router.post("/reset-password", resetPassword);
+router.post("/send-otp", async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const otp = crypto.randomInt(100000, 999999).toString();
+    user.otp = await bcrypt.hash(otp, 10);
+    user.otpExpires = Date.now() + 10 * 60 * 1000; // 10 phút
+    await user.save();
+
+    // ⚠️ ở thực tế sẽ gửi qua email, giờ chỉ trả về cho test
+    res.json({ message: "OTP generated successfully", otp });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 /**
  * @swagger
  * /api/auth/verify-otp:
  *   post:
- *     summary: Xác thực OTP
+ *     summary: Verify OTP
+ *     tags: [Auth]
  *     requestBody:
  *       required: true
  *       content:
@@ -136,24 +169,39 @@ router.post("/reset-password", resetPassword);
  *             properties:
  *               email:
  *                 type: string
+ *                 example: "b@example.com"
  *               otp:
  *                 type: string
+ *                 example: "123456"
  *     responses:
  *       200:
- *         description: OTP hợp lệ
+ *         description: OTP verified successfully
+ *       400:
+ *         description: Invalid or expired OTP
  */
-router.post("/verify-otp", verifyOtp);
-/**
- * @swagger
- * /api/auth/profile:
- *   get:
- *     summary: Lấy thông tin profile
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Trả về thông tin user
- */
-router.get("/profile", protect, profile);
+router.post("/verify-otp", async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const user = await User.findOne({ email });
+    if (!user || !user.otp || !user.otpExpires) {
+      return res.status(400).json({ message: "OTP not requested" });
+    }
+
+    if (user.otpExpires < Date.now()) {
+      return res.status(400).json({ message: "OTP expired" });
+    }
+
+    const isValid = await bcrypt.compare(otp, user.otp);
+    if (!isValid) return res.status(400).json({ message: "Invalid OTP" });
+
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    await user.save();
+
+    res.json({ message: "OTP verified successfully" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
 module.exports = router;

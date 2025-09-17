@@ -1,7 +1,3 @@
-// Route mặc định cho trang chủ
-app.get('/', (req, res) => {
-  res.send('API is running!');
-});
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -9,6 +5,7 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 const app = express();
+
 // Swagger
 require('./swagger')(app);
 
@@ -18,6 +15,11 @@ app.use(express.json());
 // Import route
 const authRoutes = require('./routes/authRoutes');
 app.use('/api/auth', authRoutes);
+
+// Route mặc định cho trang chủ
+app.get('/', (req, res) => {
+  res.send('API is running!');
+});
 
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {

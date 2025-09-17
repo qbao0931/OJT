@@ -10,6 +10,40 @@ const { protect, isAdmin } = require("../middleware/authMiddleware");
  *   description: User management (Admin only)
  */
 
+/**
+ * @swagger
+ * /api/users:
+ *   post:
+ *     summary: Create a new user (Admin only)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - email
+ *               - password
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: "Nguyen Van A"
+ *               email:
+ *                 type: string
+ *                 example: "a@example.com"
+ *               password:
+ *                 type: string
+ *                 example: "123456"
+ *     responses:
+ *       201:
+ *         description: User created successfully
+ *       400:
+ *         description: User already exists
+ */
 router.post("/", protect, isAdmin, async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -23,6 +57,18 @@ router.post("/", protect, isAdmin, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/users:
+ *   get:
+ *     summary: Get all users (Admin only)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of users
+ */
 router.get("/", protect, isAdmin, async (req, res) => {
   try {
     const users = await User.find().select("-password -otp -otpExpires");
@@ -32,6 +78,27 @@ router.get("/", protect, isAdmin, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/users/{id}:
+ *   get:
+ *     summary: Get a user by ID (Admin only)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User details
+ *       404:
+ *         description: User not found
+ */
 router.get("/:id", protect, isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select("-password -otp -otpExpires");
@@ -42,6 +109,43 @@ router.get("/:id", protect, isAdmin, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/users/{id}:
+ *   put:
+ *     summary: Update a user by ID (Admin only)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: "Nguyen Van B"
+ *               email:
+ *                 type: string
+ *                 example: "b@example.com"
+ *               password:
+ *                 type: string
+ *                 example: "newpassword"
+ *     responses:
+ *       200:
+ *         description: User updated successfully
+ *       404:
+ *         description: User not found
+ */
 router.put("/:id", protect, isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -59,6 +163,27 @@ router.put("/:id", protect, isAdmin, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/users/{id}:
+ *   delete:
+ *     summary: Delete a user by ID (Admin only)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User removed successfully
+ *       404:
+ *         description: User not found
+ */
 router.delete("/:id", protect, isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);

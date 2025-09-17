@@ -1,3 +1,7 @@
+// Route mặc định cho trang chủ
+app.get('/', (req, res) => {
+  res.send('API is running!');
+});
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');

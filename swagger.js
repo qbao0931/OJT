@@ -12,6 +12,16 @@ const options = {
     servers: [
       { url: 'http://localhost:5000' }
     ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT'
+        }
+      }
+    },
+    security: [{ bearerAuth: [] }],
   },
   apis: ['./routes/*.js'], // Đường dẫn tới các file route
 };

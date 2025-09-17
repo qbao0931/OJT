@@ -1,5 +1,8 @@
 // routes/authRoutes.js
 // Lưu ý: Tất cả các endpoint đều bắt đầu bằng /api/auth (ví dụ: /api/auth/login, /api/auth/forgot-password)
+
+// routes/authRoutes.js
+// Lưu ý: Tất cả các endpoint đều bắt đầu bằng /api/auth (ví dụ: /api/auth/login, /api/auth/forgot-password)
 const express = require("express");
 const router = express.Router();
 const {
@@ -8,10 +11,30 @@ const {
   forgotPassword,
   resetPassword,
   profile,
-  verifyOtp
+  verifyOtp,
+  refreshToken
 } = require("../controllers/authController");
-// ...existing code...
 const { protect } = require("../middleware/authMiddleware"); // giả sử bạn có middleware
+
+/**
+ * @swagger
+ * /api/auth/refresh-token:
+ *   post:
+ *     summary: Lấy access token mới từ refresh token
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Trả về access token mới
+ */
+router.post("/refresh-token", refreshToken);
 
 /**
  * @swagger

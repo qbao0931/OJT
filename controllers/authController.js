@@ -1,3 +1,14 @@
+exports.refreshToken = async (req, res) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) return res.status(400).json({ message: "Missing refreshToken" });
+  try {
+    const payload = jwt.verify(refreshToken, process.env.JWT_SECRET);
+    const accessToken = jwt.sign({ id: payload.id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    res.json({ accessToken });
+  } catch (err) {
+    res.status(401).json({ message: "Invalid refresh token" });
+  }
+};
 // Xác thực OTP riêng biệt
 exports.verifyOtp = async (req, res) => {
   const { email, otp } = req.body;
@@ -53,10 +64,13 @@ exports.login = async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(401).json({ message: "Invalid email or password" });
 
+    // Tạo refresh token
+    const refreshToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
     res.json({
       _id: user._id,
       email: user.email,
-      token: generateToken(user._id)
+      accessToken: generateToken(user._id),
+      refreshToken
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

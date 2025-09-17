@@ -6,11 +6,12 @@ const dotenv = require('dotenv');
 dotenv.config();
 const app = express();
 
-// Swagger
-require('./swagger')(app);
-
+// Middleware
 app.use(cors());
 app.use(express.json());
+
+// Swagger
+require('./swagger')(app);
 
 // Import route
 const authRoutes = require('./routes/authRoutes');
@@ -18,14 +19,21 @@ app.use('/api/auth', authRoutes);
 
 // Route mặc định cho trang chủ
 app.get('/', (req, res) => {
-  res.send('API is running!');
+  res.json({ message: 'API is running!' });
 });
 
+// Kết nối MongoDB và start server
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log("MongoDB connected");
-    app.listen(process.env.PORT, () => {
-      console.log(`Server running on port ${process.env.PORT}`);
-    });
   })
-  .catch(err => console.error(err));
+  .catch(err => {
+    console.error("MongoDB connection error:", err.message);
+  })
+  .finally(() => {
+    // Dù DB fail vẫn khởi động server
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  });

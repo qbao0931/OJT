@@ -2,6 +2,20 @@ const express = require("express");
 const router = express.Router();
 const User = require("../models/User");
 const { protect, isAdmin } = require("../middleware/authMiddleware");
+const multer = require("multer");
+const path = require("path");
+
+// Multer config cho avatar
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "uploads/avatars/");
+  },
+  filename: function (req, file, cb) {
+    const ext = path.extname(file.originalname);
+    cb(null, req.user.id + "_avatar" + ext);
+  },
+});
+const upload = multer({ storage });
 
 /**
  * @swagger
@@ -154,7 +168,7 @@ router.put("/:id", protect, isAdmin, async (req, res) => {
     user.name = req.body.name || user.name;
     user.email = req.body.email || user.email;
     if (req.body.password) {
-      user.password = req.body.password; // sẽ hash ở pre("save")
+      user.password = req.body.password;
     }
     const updated = await user.save();
     res.json(updated);
@@ -191,6 +205,98 @@ router.delete("/:id", protect, isAdmin, async (req, res) => {
 
     await user.deleteOne();
     res.json({ message: "User removed" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/users/profile:
+ *   put:
+ *     summary: Update own profile
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: "Nguyen Van Updated"
+ *               email:
+ *                 type: string
+ *                 example: "updated@example.com"
+ *               password:
+ *                 type: string
+ *                 example: "newpassword123"
+ *     responses:
+ *       200:
+ *         description: Profile updated successfully
+ *       404:
+ *         description: User not found
+ */
+router.put("/profile", protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    user.name = req.body.name || user.name;
+    user.email = req.body.email || user.email;
+    if (req.body.password) {
+      user.password = req.body.password;
+    }
+    const updated = await user.save();
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/users/profile/avatar:
+ *   post:
+ *     summary: Upload avatar for current user
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     consumes:
+ *       - multipart/form-data
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               avatar:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Avatar uploaded successfully
+ *       400:
+ *         description: No file uploaded
+ */
+router.post("/profile/avatar", protect, upload.single("avatar"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    user.avatar = `/uploads/avatars/${req.file.filename}`;
+    await user.save();
+
+    res.json({
+      message: "Avatar uploaded successfully",
+      avatar: user.avatar,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
